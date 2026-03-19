@@ -11,7 +11,17 @@ public record Consumer(
     decimal OnepointBalance,
     string? QrCodeData,
     bool IsActive,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt)
+{
+
+    // Dapper may materialize timestamp columns as System.DateTime. Provide an
+    // overload that accepts DateTime so materialization succeeds without
+    // requiring a parameterless constructor.
+    public Consumer(Guid Id, string PhoneNumber, string? DisplayName, decimal OnepointBalance, string? QrCodeData, bool IsActive, DateTime createdAt)
+        : this(Id, PhoneNumber, DisplayName, OnepointBalance, QrCodeData, IsActive, new DateTimeOffset(createdAt))
+    {
+    }
+};
 
 /// <summary>
 /// Link between a consumer and an external partner loyalty program.
@@ -88,7 +98,17 @@ public record Merchant(
     string? BusinessRegistration,
     decimal SettlementBalance,
     bool IsActive,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt)
+{
+
+    // Dapper may materialize timestamp columns as System.DateTime. Provide an
+    // overload that accepts DateTime so materialization succeeds without
+    // requiring a parameterless constructor.
+    public Merchant(Guid Id, string BusinessName, string? BusinessRegistration, decimal SettlementBalance, bool IsActive, DateTime createdAt)
+        : this(Id, BusinessName, BusinessRegistration, SettlementBalance, IsActive, new DateTimeOffset(createdAt))
+    {
+    }
+};
 
 /// <summary>
 /// A user account associated with a merchant (dashboard access).

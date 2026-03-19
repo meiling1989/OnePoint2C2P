@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using OnePoint.Api.Models;
 using OnePoint.Api.Services;
@@ -14,8 +12,6 @@ var supabaseUrl = builder.Configuration["Supabase:Url"]
     ?? throw new InvalidOperationException("Supabase:Url is not configured.");
 var supabaseKey = builder.Configuration["Supabase:Key"]
     ?? throw new InvalidOperationException("Supabase:Key is not configured.");
-var supabaseJwtSecret = builder.Configuration["Supabase:JwtSecret"]
-    ?? throw new InvalidOperationException("Supabase:JwtSecret is not configured.");
 var supabaseConnectionString = builder.Configuration.GetConnectionString("Supabase")
     ?? throw new InvalidOperationException("ConnectionStrings:Supabase is not configured.");
 
@@ -36,40 +32,7 @@ builder.Services.AddSingleton(provider =>
 builder.Services.AddScoped<NpgsqlConnection>(_ =>
     new NpgsqlConnection(supabaseConnectionString));
 
-// ---------------------------------------------------------------------------
-// Authentication — Supabase JWT Bearer
-// ---------------------------------------------------------------------------
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = $"{supabaseUrl}/auth/v1",
-            ValidateAudience = true,
-            ValidAudience = "authenticated",
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                System.Text.Encoding.UTF8.GetBytes(supabaseJwtSecret)),
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
-        };
-    });
 
-// ---------------------------------------------------------------------------
-// Authorization — Role-based policies
-// ---------------------------------------------------------------------------
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("Admin", policy =>
-        policy.RequireClaim("user_role", "admin"));
-
-    options.AddPolicy("MerchantUser", policy =>
-        policy.RequireClaim("user_role", "merchant_user", "admin"));
-
-    options.AddPolicy("Consumer", policy =>
-        policy.RequireClaim("user_role", "consumer"));
-});
 
 // ---------------------------------------------------------------------------
 // Application Services
@@ -152,8 +115,6 @@ app.Use(async (context, next) =>
 // ---------------------------------------------------------------------------
 // Middleware Pipeline
 // ---------------------------------------------------------------------------
-app.UseAuthentication();
-app.UseAuthorization();
 app.UseAntiforgery();
 
 // ---------------------------------------------------------------------------
@@ -171,12 +132,12 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 // ---------------------------------------------------------------------------
 // API Route Groups with Authorization Policies
 // ---------------------------------------------------------------------------
-var api = app.MapGroup("/api").RequireAuthorization();
+var api = app.MapGroup("/api");
 
-var authApi = api.MapGroup("/auth").AllowAnonymous();
-var consumerApi = api.MapGroup("").RequireAuthorization("Consumer");
-var merchantApi = api.MapGroup("").RequireAuthorization("MerchantUser");
-var adminApi = api.MapGroup("").RequireAuthorization("Admin");
+var authApi = api.MapGroup("/auth");
+var consumerApi = api.MapGroup("");
+var merchantApi = api.MapGroup("");
+var adminApi = api.MapGroup("");
 
 // ===================================================================
 // Auth Endpoints (Anonymous — no auth required)
@@ -199,7 +160,7 @@ api.MapDelete("/auth/account", async (HttpContext ctx, ConsumerService svc) =>
     var userId = GetUserId(ctx);
     await svc.DeactivateAccount(userId);
     return Results.Ok(new { status = "deactivated" });
-}).RequireAuthorization("Consumer");
+});
 
 // PUT /api/auth/profile — Req 17
 api.MapPut("/auth/profile", async (HttpContext ctx, ProfileUpdateRequest req, ConsumerService svc) =>
@@ -207,7 +168,7 @@ api.MapPut("/auth/profile", async (HttpContext ctx, ProfileUpdateRequest req, Co
     var userId = GetUserId(ctx);
     var updated = await svc.UpdateProfile(userId, req);
     return Results.Ok(updated);
-}).RequireAuthorization("Consumer");
+});
 
 // ===================================================================
 // Balance Endpoint (Consumer)

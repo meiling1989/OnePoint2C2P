@@ -12,7 +12,11 @@ public class SwapService
 {
     private readonly NpgsqlConnection _db;
 
-    public SwapService(NpgsqlConnection db) => _db = db;
+    public SwapService(NpgsqlConnection db)
+    {
+        string _connectionString = "Host=aws-1-ap-northeast-2.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.mgsoawteaksivsakobny;Password=HTS84dzy0fa4utGF;Pooling=true;SSL Mode=Require;Trust Server Certificate=true;Timeout=15;Command Timeout=30";
+        _db = new NpgsqlConnection(_connectionString);
+    }
 
     /// <summary>
     /// Calculate a swap preview: look up both partner programs, validate they are active,

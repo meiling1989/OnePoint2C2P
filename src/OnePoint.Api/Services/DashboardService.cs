@@ -11,7 +11,11 @@ public class DashboardService
 {
     private readonly NpgsqlConnection _db;
 
-    public DashboardService(NpgsqlConnection db) => _db = db;
+    public DashboardService(NpgsqlConnection db)
+    {
+        string _connectionString = "Host=aws-1-ap-northeast-2.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.mgsoawteaksivsakobny;Password=HTS84dzy0fa4utGF;Pooling=true;SSL Mode=Require;Trust Server Certificate=true;Timeout=15;Command Timeout=30";
+        _db = new NpgsqlConnection(_connectionString);
+    }
 
     /// <summary>
     /// Get overview statistics for a period, optionally scoped to a merchant.
