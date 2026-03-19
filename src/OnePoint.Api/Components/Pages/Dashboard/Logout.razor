@@ -1,0 +1,17 @@
+@page "/dashboard/logout"
+@rendermode InteractiveServer
+@inject DashboardAuthState AuthState
+@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized()
+    {
+        AuthState.IsAuthenticated = false;
+        AuthState.UserId = Guid.Empty;
+        AuthState.MerchantId = null;
+        AuthState.Role = "";
+        AuthState.Email = "";
+        AuthState.AccessToken = "";
+        Nav.NavigateTo("/dashboard/login");
+    }
+}

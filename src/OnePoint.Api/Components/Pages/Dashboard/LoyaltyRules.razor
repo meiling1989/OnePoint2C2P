@@ -1,0 +1,230 @@
+@page "/dashboard/loyalty-rules"
+@rendermode InteractiveServer
+@layout DashboardLayout
+@inject DashboardAuthState AuthState
+@inject LoyaltyRuleService RuleSvc
+@inject MerchantService MerchantSvc
+@inject NavigationManager Nav
+
+<PageTitle>OnePoint Dashboard — Loyalty Rules</PageTitle>
+
+@if (!AuthState.IsAuthenticated)
+{
+    <p>Redirecting…</p>
+}
+else
+{
+    <h1>Loyalty Rules</h1>
+
+    @if (AuthState.Role == "admin")
+    {
+        <div class="form-group" style="margin-bottom:1rem;">
+            <label for="merchantSelect">Merchant</label>
+            <select id="merchantSelect" @bind="_selectedMerchantId" @bind:after="OnMerchantChanged">
+                <option value="">Select a merchant…</option>
+                @foreach (var m in _merchants)
+                {
+                    <option value="@m.Id">@m.BusinessName</option>
+                }
+            </select>
+        </div>
+    }
+
+    @if (_activeMerchantId != Guid.Empty)
+    {
+        <!-- Create / Edit Rule Form -->
+        <div class="form-card">
+            <h3>@(_editingRuleId.HasValue ? "Edit Rule" : "Create Rule")</h3>
+            @if (!string.IsNullOrEmpty(_formError))
+            {
+                <div class="error-banner" role="alert">@_formError</div>
+            }
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ruleType">Type</label>
+                    <select id="ruleType" @bind="_ruleType">
+                        <option value="earn">Earn</option>
+                        <option value="redeem">Redeem</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="threshold">Purchase Threshold</label>
+                    <input id="threshold" type="number" step="0.01" min="0.01" @bind="_threshold" />
+                </div>
+                <div class="form-group">
+                    <label for="pointsVal">Points Value</label>
+                    <input id="pointsVal" type="number" step="0.01" min="0.01" @bind="_pointsValue" />
+                </div>
+                <button class="btn-primary" @onclick="SaveRule" disabled="@_saving">
+                    @(_editingRuleId.HasValue ? "Update" : "Create")
+                </button>
+                @if (_editingRuleId.HasValue)
+                {
+                    <button class="btn-secondary" @onclick="CancelEdit">Cancel</button>
+                }
+            </div>
+        </div>
+
+        <!-- Rules List -->
+        @if (_loading)
+        {
+            <p>Loading rules…</p>
+        }
+        else
+        {
+            <table class="data-table" role="grid">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Threshold</th>
+                        <th>Points Value</th>
+                        <th>Active</th>
+                        <th>Updated</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in _rules)
+                    {
+                        <tr>
+                            <td>@r.RuleType</td>
+                            <td>@r.PurchaseThreshold.ToString("N2")</td>
+                            <td>@r.PointsValue.ToString("N2")</td>
+                            <td>@(r.IsActive ? "✓" : "✗")</td>
+                            <td>@r.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>
+                                <button class="btn-sm" @onclick="() => EditRule(r)">Edit</button>
+                                @if (r.IsActive)
+                                {
+                                    <button class="btn-sm btn-danger" @onclick="() => DeactivateRule(r.Id)">Deactivate</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+}
+
+<style>
+    .form-card { background: #fff; padding: 1.25rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .form-card h3 { margin: 0 0 0.75rem; }
+    .form-row { display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { font-size: 0.8rem; color: #666; margin-bottom: 0.25rem; }
+    .form-group input, .form-group select { padding: 0.4rem; border: 1px solid #ddd; border-radius: 4px; }
+    .error-banner { background: #ffe0e0; color: #c00; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.75rem; font-size: 0.85rem; }
+    .btn-primary { padding: 0.45rem 1rem; background: #7c83ff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-secondary { padding: 0.45rem 1rem; background: #eee; color: #333; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.8rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; margin-right: 0.25rem; }
+    .btn-danger { color: #c00; border-color: #c00; }
+    .data-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .data-table th, .data-table td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
+    .data-table th { background: #fafafa; font-size: 0.85rem; color: #666; }
+</style>
+
+@code {
+    private List<Merchant> _merchants = new();
+    private List<LoyaltyRule> _rules = new();
+    private bool _loading;
+    private bool _saving;
+
+    private string _selectedMerchantId = "";
+    private Guid _activeMerchantId;
+
+    // Form fields
+    private string _ruleType = "earn";
+    private decimal _threshold;
+    private decimal _pointsValue;
+    private string _formError = "";
+    private Guid? _editingRuleId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated) { Nav.NavigateTo("/dashboard/login"); return; }
+
+        if (AuthState.Role == "admin")
+        {
+            _merchants = await MerchantSvc.GetMerchants();
+        }
+        else if (AuthState.MerchantId.HasValue)
+        {
+            _activeMerchantId = AuthState.MerchantId.Value;
+            await LoadRules();
+        }
+    }
+
+    private async Task OnMerchantChanged()
+    {
+        if (Guid.TryParse(_selectedMerchantId, out var id))
+        {
+            _activeMerchantId = id;
+            await LoadRules();
+        }
+        else
+        {
+            _activeMerchantId = Guid.Empty;
+            _rules = new();
+        }
+    }
+
+    private async Task LoadRules()
+    {
+        _loading = true;
+        try { _rules = await RuleSvc.GetRules(_activeMerchantId); }
+        catch { _rules = new(); }
+        finally { _loading = false; }
+    }
+
+    private void EditRule(LoyaltyRule r)
+    {
+        _editingRuleId = r.Id;
+        _ruleType = r.RuleType;
+        _threshold = r.PurchaseThreshold;
+        _pointsValue = r.PointsValue;
+        _formError = "";
+    }
+
+    private void CancelEdit()
+    {
+        _editingRuleId = null;
+        _ruleType = "earn";
+        _threshold = 0;
+        _pointsValue = 0;
+        _formError = "";
+    }
+
+    private async Task SaveRule()
+    {
+        _formError = "";
+        if (_threshold <= 0) { _formError = "Purchase threshold must be a positive number."; return; }
+        if (_pointsValue <= 0) { _formError = "Points value must be a positive number."; return; }
+
+        _saving = true;
+        try
+        {
+            var input = new LoyaltyRuleInput(_ruleType, _threshold, _pointsValue);
+            if (_editingRuleId.HasValue)
+                await RuleSvc.UpdateRule(_editingRuleId.Value, input);
+            else
+                await RuleSvc.CreateRule(_activeMerchantId, input);
+
+            CancelEdit();
+            await LoadRules();
+        }
+        catch (ValidationException ex) { _formError = ex.Message; }
+        catch (Exception) { _formError = "An error occurred. Please try again."; }
+        finally { _saving = false; }
+    }
+
+    private async Task DeactivateRule(Guid ruleId)
+    {
+        try
+        {
+            await RuleSvc.DeactivateRule(ruleId);
+            await LoadRules();
+        }
+        catch (Exception ex) { _formError = ex.Message; }
+    }
+}

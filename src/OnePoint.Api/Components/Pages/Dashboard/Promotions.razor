@@ -1,0 +1,215 @@
+@page "/dashboard/promotions"
+@rendermode InteractiveServer
+@layout DashboardLayout
+@inject DashboardAuthState AuthState
+@inject PromotionService PromoSvc
+@inject MerchantService MerchantSvc
+@inject NavigationManager Nav
+
+<PageTitle>OnePoint Dashboard — Promotions</PageTitle>
+
+@if (!AuthState.IsAuthenticated)
+{
+    <p>Redirecting…</p>
+}
+else
+{
+    <h1>Promotions</h1>
+
+    @if (AuthState.Role == "admin")
+    {
+        <div class="form-group" style="margin-bottom:1rem;">
+            <label for="merchantSelect">Merchant</label>
+            <select id="merchantSelect" @bind="_selectedMerchantId" @bind:after="OnMerchantChanged">
+                <option value="">Select a merchant…</option>
+                @foreach (var m in _merchants)
+                {
+                    <option value="@m.Id">@m.BusinessName</option>
+                }
+            </select>
+        </div>
+    }
+
+    @if (_activeMerchantId != Guid.Empty)
+    {
+        <!-- Create Promotion Form -->
+        <div class="form-card">
+            <h3>Create Promotion</h3>
+            @if (!string.IsNullOrEmpty(_formError))
+            {
+                <div class="error-banner" role="alert">@_formError</div>
+            }
+            <div class="form-col">
+                <div class="form-row">
+                    <div class="form-group fg-wide">
+                        <label for="desc">Description *</label>
+                        <input id="desc" @bind="_description" placeholder="Promotion description" />
+                    </div>
+                    <div class="form-group">
+                        <label for="cat">Category</label>
+                        <input id="cat" @bind="_category" placeholder="e.g. food, retail" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="validFrom">Valid From *</label>
+                        <input id="validFrom" type="datetime-local" @bind="_validFrom" />
+                    </div>
+                    <div class="form-group">
+                        <label for="validUntil">Valid Until *</label>
+                        <input id="validUntil" type="datetime-local" @bind="_validUntil" />
+                    </div>
+                    <div class="form-group">
+                        <label for="reqPts">Required Points *</label>
+                        <input id="reqPts" type="number" step="1" min="1" @bind="_requiredPoints" />
+                    </div>
+                </div>
+                <div class="form-group fg-wide">
+                    <label for="terms">Terms &amp; Conditions</label>
+                    <textarea id="terms" @bind="_terms" rows="2" placeholder="Optional terms"></textarea>
+                </div>
+                <button class="btn-primary" @onclick="CreatePromotion" disabled="@_saving">Create</button>
+            </div>
+        </div>
+
+        <!-- Promotions List -->
+        @if (_loading)
+        {
+            <p>Loading promotions…</p>
+        }
+        else
+        {
+            <table class="data-table" role="grid">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Points</th>
+                        <th>Valid From</th>
+                        <th>Valid Until</th>
+                        <th>Active</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in _promotions)
+                    {
+                        <tr>
+                            <td>@p.Description</td>
+                            <td>@(p.Category ?? "—")</td>
+                            <td>@p.RequiredPoints.ToString("N0")</td>
+                            <td>@p.ValidFrom.ToString("yyyy-MM-dd")</td>
+                            <td>@p.ValidUntil.ToString("yyyy-MM-dd")</td>
+                            <td>@(p.IsActive ? "✓" : "✗")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+}
+
+<style>
+    .form-card { background: #fff; padding: 1.25rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .form-card h3 { margin: 0 0 0.75rem; }
+    .form-col { display: flex; flex-direction: column; gap: 0.75rem; }
+    .form-row { display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; }
+    .fg-wide { flex: 1; min-width: 200px; }
+    .form-group label { font-size: 0.8rem; color: #666; margin-bottom: 0.25rem; }
+    .form-group input, .form-group select, .form-group textarea { padding: 0.4rem; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; }
+    .error-banner { background: #ffe0e0; color: #c00; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.75rem; font-size: 0.85rem; }
+    .btn-primary { padding: 0.45rem 1rem; background: #7c83ff; color: #fff; border: none; border-radius: 4px; cursor: pointer; align-self: start; }
+    .data-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .data-table th, .data-table td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
+    .data-table th { background: #fafafa; font-size: 0.85rem; color: #666; }
+</style>
+
+@code {
+    private List<Merchant> _merchants = new();
+    private List<Promotion> _promotions = new();
+    private bool _loading;
+    private bool _saving;
+
+    private string _selectedMerchantId = "";
+    private Guid _activeMerchantId;
+
+    // Form fields
+    private string _description = "";
+    private string _category = "";
+    private DateTime _validFrom = DateTime.Now;
+    private DateTime _validUntil = DateTime.Now.AddDays(30);
+    private decimal _requiredPoints;
+    private string _terms = "";
+    private string _formError = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated) { Nav.NavigateTo("/dashboard/login"); return; }
+
+        if (AuthState.Role == "admin")
+        {
+            _merchants = await MerchantSvc.GetMerchants();
+        }
+        else if (AuthState.MerchantId.HasValue)
+        {
+            _activeMerchantId = AuthState.MerchantId.Value;
+            await LoadPromotions();
+        }
+    }
+
+    private async Task OnMerchantChanged()
+    {
+        if (Guid.TryParse(_selectedMerchantId, out var id))
+        {
+            _activeMerchantId = id;
+            await LoadPromotions();
+        }
+        else
+        {
+            _activeMerchantId = Guid.Empty;
+            _promotions = new();
+        }
+    }
+
+    private async Task LoadPromotions()
+    {
+        _loading = true;
+        try
+        {
+            var filter = new PromotionFilter(_activeMerchantId, null);
+            _promotions = await PromoSvc.GetActivePromotions(filter);
+        }
+        catch { _promotions = new(); }
+        finally { _loading = false; }
+    }
+
+    private async Task CreatePromotion()
+    {
+        _formError = "";
+        if (string.IsNullOrWhiteSpace(_description)) { _formError = "Description is required."; return; }
+        if (_validFrom >= _validUntil) { _formError = "Valid From must be before Valid Until."; return; }
+        if (_requiredPoints <= 0) { _formError = "Required points must be a positive number."; return; }
+
+        _saving = true;
+        try
+        {
+            var input = new PromotionInput(
+                _description,
+                string.IsNullOrWhiteSpace(_category) ? null : _category,
+                _requiredPoints,
+                string.IsNullOrWhiteSpace(_terms) ? null : _terms,
+                new DateTimeOffset(_validFrom),
+                new DateTimeOffset(_validUntil));
+
+            await PromoSvc.CreatePromotion(_activeMerchantId, input);
+            _description = "";
+            _category = "";
+            _requiredPoints = 0;
+            _terms = "";
+            await LoadPromotions();
+        }
+        catch (ValidationException ex) { _formError = ex.Message; }
+        catch (Exception) { _formError = "An error occurred. Please try again."; }
+        finally { _saving = false; }
+    }
+}

@@ -1,0 +1,201 @@
+@page "/dashboard/transactions"
+@rendermode InteractiveServer
+@layout DashboardLayout
+@inject DashboardAuthState AuthState
+@inject RedemptionService RedemptionSvc
+@inject MerchantService MerchantSvc
+@inject NavigationManager Nav
+
+<PageTitle>OnePoint Dashboard — Transactions</PageTitle>
+
+@if (!AuthState.IsAuthenticated)
+{
+    <p>Redirecting…</p>
+}
+else
+{
+    <h1>Transactions</h1>
+
+    <div class="filters" role="search">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label for="fromDate">From</label>
+                <input id="fromDate" type="date" @bind="_fromDate" />
+            </div>
+            <div class="filter-group">
+                <label for="toDate">To</label>
+                <input id="toDate" type="date" @bind="_toDate" />
+            </div>
+            <div class="filter-group">
+                <label for="status">Status</label>
+                <select id="status" @bind="_status">
+                    <option value="">All</option>
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="failed">Failed</option>
+                    <option value="reversed">Reversed</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="minAmount">Min Amount</label>
+                <input id="minAmount" type="number" step="0.01" @bind="_minAmount" placeholder="0" />
+            </div>
+            <button class="btn-filter" @onclick="ApplyFilters">Filter</button>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <p>Loading transactions…</p>
+    }
+    else
+    {
+        <table class="data-table" role="grid">
+            <thead>
+                <tr>
+                    <th><button class="sort-btn" @onclick='() => Sort("date")'>Date @SortIcon("date")</button></th>
+                    <th>Ref</th>
+                    @if (AuthState.Role == "admin")
+                    {
+                        <th>Merchant</th>
+                    }
+                    <th><button class="sort-btn" @onclick='() => Sort("amount")'>Amount @SortIcon("amount")</button></th>
+                    <th><button class="sort-btn" @onclick='() => Sort("status")'>Status @SortIcon("status")</button></th>
+                    <th>Method</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (_result is not null)
+                {
+                    @foreach (var tx in _result.Items)
+                    {
+                        <tr>
+                            <td>@tx.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@tx.TransactionRef</td>
+                            @if (AuthState.Role == "admin")
+                            {
+                                <td>@GetMerchantName(tx.MerchantId)</td>
+                            }
+                            <td>@tx.PointsRedeemed.ToString("N0")</td>
+                            <td><span class="status-badge status-@tx.Status">@tx.Status</span></td>
+                            <td>@tx.Method</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+
+        @if (_result is not null && _result.TotalCount > _pageSize)
+        {
+            <div class="pagination">
+                <button disabled="@(_page <= 1)" @onclick="PrevPage">← Prev</button>
+                <span>Page @_page of @TotalPages</span>
+                <button disabled="@(_page >= TotalPages)" @onclick="NextPage">Next →</button>
+            </div>
+        }
+    }
+}
+
+<style>
+    .filters { background: #fff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .filter-row { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; }
+    .filter-group { display: flex; flex-direction: column; }
+    .filter-group label { font-size: 0.8rem; color: #666; margin-bottom: 0.25rem; }
+    .filter-group input, .filter-group select { padding: 0.4rem; border: 1px solid #ddd; border-radius: 4px; }
+    .btn-filter { padding: 0.5rem 1rem; background: #7c83ff; color: #fff; border: none; border-radius: 4px; cursor: pointer; align-self: end; }
+    .data-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .data-table th, .data-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #eee; }
+    .data-table th { background: #fafafa; font-size: 0.85rem; color: #666; }
+    .sort-btn { background: none; border: none; cursor: pointer; font-weight: 600; color: #666; font-size: 0.85rem; }
+    .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; text-transform: capitalize; }
+    .status-approved { background: #d4edda; color: #155724; }
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-failed { background: #f8d7da; color: #721c24; }
+    .status-reversed { background: #e2e3e5; color: #383d41; }
+    .pagination { display: flex; gap: 1rem; align-items: center; justify-content: center; margin-top: 1rem; }
+    .pagination button { padding: 0.4rem 0.8rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; }
+    .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+
+@code {
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+    private string _status = "";
+    private decimal? _minAmount;
+    private string _sortBy = "date";
+    private string _sortDir = "desc";
+    private int _page = 1;
+    private int _pageSize = 20;
+    private bool _loading = true;
+    private PagedResult<RedemptionTransaction>? _result;
+    private Dictionary<Guid, string> _merchantNames = new();
+
+    private int TotalPages => _result is null ? 1 : (int)Math.Ceiling((double)_result.TotalCount / _pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated) { Nav.NavigateTo("/dashboard/login"); return; }
+
+        // Pre-load merchant names for admin view
+        if (AuthState.Role == "admin")
+        {
+            var merchants = await MerchantSvc.GetMerchants();
+            _merchantNames = merchants.ToDictionary(m => m.Id, m => m.BusinessName);
+        }
+
+        await LoadTransactions();
+    }
+
+    private string GetMerchantName(Guid merchantId) =>
+        _merchantNames.TryGetValue(merchantId, out var name) ? name : merchantId.ToString()[..8];
+
+    private string SortIcon(string field) =>
+        _sortBy == field ? (_sortDir == "asc" ? "↑" : "↓") : "";
+
+    private async Task Sort(string field)
+    {
+        if (_sortBy == field)
+            _sortDir = _sortDir == "asc" ? "desc" : "asc";
+        else
+        {
+            _sortBy = field;
+            _sortDir = "desc";
+        }
+        _page = 1;
+        await LoadTransactions();
+    }
+
+    private async Task ApplyFilters()
+    {
+        _page = 1;
+        await LoadTransactions();
+    }
+
+    private async Task PrevPage() { _page--; await LoadTransactions(); }
+    private async Task NextPage() { _page++; await LoadTransactions(); }
+
+    private async Task LoadTransactions()
+    {
+        _loading = true;
+        try
+        {
+            var filter = new TransactionFilter(
+                null,
+                AuthState.MerchantId, // null for admin = all merchants
+                _fromDate.HasValue ? new DateTimeOffset(_fromDate.Value, TimeSpan.Zero) : null,
+                _toDate.HasValue ? new DateTimeOffset(_toDate.Value.AddDays(1), TimeSpan.Zero) : null,
+                string.IsNullOrEmpty(_status) ? null : _status,
+                _minAmount);
+
+            _result = await RedemptionSvc.GetTransactions(filter, _page, _pageSize, _sortBy, _sortDir);
+        }
+        catch
+        {
+            _result = new PagedResult<RedemptionTransaction>([], _page, _pageSize, 0);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

@@ -1,0 +1,259 @@
+@page "/dashboard/merchants"
+@rendermode InteractiveServer
+@layout DashboardLayout
+@inject DashboardAuthState AuthState
+@inject MerchantService MerchantSvc
+@inject NavigationManager Nav
+
+<PageTitle>OnePoint Dashboard — Merchants</PageTitle>
+
+@if (!AuthState.IsAuthenticated || AuthState.Role != "admin")
+{
+    <p>Access denied. Admin only.</p>
+}
+else
+{
+    <h1>Merchant Management</h1>
+
+    <!-- Create / Edit Merchant Form -->
+    <div class="form-card">
+        <h3>@(_editingMerchantId.HasValue ? "Edit Merchant" : "Create Merchant")</h3>
+        @if (!string.IsNullOrEmpty(_formError))
+        {
+            <div class="error-banner" role="alert">@_formError</div>
+        }
+        <div class="form-row">
+            <div class="form-group">
+                <label for="bizName">Business Name *</label>
+                <input id="bizName" @bind="_bizName" placeholder="Business name" />
+            </div>
+            <div class="form-group">
+                <label for="bizReg">Registration #</label>
+                <input id="bizReg" @bind="_bizReg" placeholder="Optional" />
+            </div>
+            <button class="btn-primary" @onclick="SaveMerchant" disabled="@_saving">
+                @(_editingMerchantId.HasValue ? "Update" : "Create")
+            </button>
+            @if (_editingMerchantId.HasValue)
+            {
+                <button class="btn-secondary" @onclick="CancelEdit">Cancel</button>
+            }
+        </div>
+    </div>
+
+    <!-- Merchants List -->
+    @if (_loading)
+    {
+        <p>Loading merchants…</p>
+    }
+    else
+    {
+        <table class="data-table" role="grid">
+            <thead>
+                <tr>
+                    <th>Business Name</th>
+                    <th>Registration</th>
+                    <th>Settlement</th>
+                    <th>Active</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in _merchants)
+                {
+                    <tr>
+                        <td>@m.BusinessName</td>
+                        <td>@(m.BusinessRegistration ?? "—")</td>
+                        <td>฿@m.SettlementBalance.ToString("N2")</td>
+                        <td>@(m.IsActive ? "✓" : "✗")</td>
+                        <td>
+                            <button class="btn-sm" @onclick="() => EditMerchant(m)">Edit</button>
+                            @if (m.IsActive)
+                            {
+                                <button class="btn-sm btn-danger" @onclick="() => Deactivate(m.Id)">Deactivate</button>
+                            }
+                            <button class="btn-sm" @onclick="() => ToggleUsers(m.Id)">Users</button>
+                        </td>
+                    </tr>
+                    @if (_expandedMerchantId == m.Id)
+                    {
+                        <tr>
+                            <td colspan="5">
+                                <div class="users-panel">
+                                    <h4>Merchant Users</h4>
+                                    @if (!string.IsNullOrEmpty(_userFormError))
+                                    {
+                                        <div class="error-banner" role="alert">@_userFormError</div>
+                                    }
+                                    <div class="form-row">
+                                        <input @bind="_newUserEmail" placeholder="Email *" />
+                                        <select @bind="_newUserRole">
+                                            <option value="merchant_user">Merchant User</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+                                        <button class="btn-sm btn-primary" @onclick="() => CreateUser(m.Id)">Add User</button>
+                                    </div>
+                                    <table class="data-table inner-table">
+                                        <thead><tr><th>Email</th><th>Role</th><th>Active</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var u in _merchantUsers)
+                                            {
+                                                <tr>
+                                                    <td>@u.Email</td>
+                                                    <td>@u.Role</td>
+                                                    <td>@(u.IsActive ? "✓" : "✗")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    }
+}
+
+<style>
+    .form-card { background: #fff; padding: 1.25rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .form-card h3 { margin: 0 0 0.75rem; }
+    .form-row { display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { font-size: 0.8rem; color: #666; margin-bottom: 0.25rem; }
+    .form-group input { padding: 0.4rem; border: 1px solid #ddd; border-radius: 4px; }
+    .error-banner { background: #ffe0e0; color: #c00; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.75rem; font-size: 0.85rem; }
+    .btn-primary { padding: 0.45rem 1rem; background: #7c83ff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-secondary { padding: 0.45rem 1rem; background: #eee; color: #333; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.8rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; margin-right: 0.25rem; }
+    .btn-danger { color: #c00; border-color: #c00; }
+    .data-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .data-table th, .data-table td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
+    .data-table th { background: #fafafa; font-size: 0.85rem; color: #666; }
+    .users-panel { padding: 0.75rem; background: #fafafa; border-radius: 4px; }
+    .users-panel h4 { margin: 0 0 0.5rem; }
+    .inner-table { margin-top: 0.5rem; box-shadow: none; }
+    .inner-table input, .inner-table select { padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px; }
+</style>
+
+@code {
+    private List<Merchant> _merchants = new();
+    private List<MerchantUser> _merchantUsers = new();
+    private bool _loading = true;
+    private bool _saving;
+
+    // Merchant form
+    private string _bizName = "";
+    private string _bizReg = "";
+    private string _formError = "";
+    private Guid? _editingMerchantId;
+
+    // Users panel
+    private Guid? _expandedMerchantId;
+    private string _newUserEmail = "";
+    private string _newUserRole = "merchant_user";
+    private string _userFormError = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated || AuthState.Role != "admin")
+        {
+            Nav.NavigateTo("/dashboard/login");
+            return;
+        }
+        await LoadMerchants();
+    }
+
+    private async Task LoadMerchants()
+    {
+        _loading = true;
+        try { _merchants = await MerchantSvc.GetMerchants(); }
+        catch { _merchants = new(); }
+        finally { _loading = false; }
+    }
+
+    private void EditMerchant(Merchant m)
+    {
+        _editingMerchantId = m.Id;
+        _bizName = m.BusinessName;
+        _bizReg = m.BusinessRegistration ?? "";
+        _formError = "";
+    }
+
+    private void CancelEdit()
+    {
+        _editingMerchantId = null;
+        _bizName = "";
+        _bizReg = "";
+        _formError = "";
+    }
+
+    private async Task SaveMerchant()
+    {
+        _formError = "";
+        if (string.IsNullOrWhiteSpace(_bizName))
+        {
+            _formError = "Business name is required.";
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var input = new MerchantInput(_bizName, string.IsNullOrWhiteSpace(_bizReg) ? null : _bizReg);
+            if (_editingMerchantId.HasValue)
+                await MerchantSvc.UpdateMerchant(_editingMerchantId.Value, input);
+            else
+                await MerchantSvc.CreateMerchant(input);
+
+            CancelEdit();
+            await LoadMerchants();
+        }
+        catch (ValidationException ex) { _formError = ex.Message; }
+        catch (Exception) { _formError = "An error occurred. Please try again."; }
+        finally { _saving = false; }
+    }
+
+    private async Task Deactivate(Guid merchantId)
+    {
+        try
+        {
+            await MerchantSvc.DeactivateMerchant(merchantId);
+            await LoadMerchants();
+        }
+        catch (Exception ex) { _formError = ex.Message; }
+    }
+
+    private async Task ToggleUsers(Guid merchantId)
+    {
+        if (_expandedMerchantId == merchantId)
+        {
+            _expandedMerchantId = null;
+            return;
+        }
+        _expandedMerchantId = merchantId;
+        _userFormError = "";
+        try { _merchantUsers = await MerchantSvc.GetMerchantUsers(merchantId); }
+        catch { _merchantUsers = new(); }
+    }
+
+    private async Task CreateUser(Guid merchantId)
+    {
+        _userFormError = "";
+        if (string.IsNullOrWhiteSpace(_newUserEmail))
+        {
+            _userFormError = "Email is required.";
+            return;
+        }
+        try
+        {
+            var input = new MerchantUserInput(Guid.NewGuid(), _newUserEmail, _newUserRole);
+            await MerchantSvc.CreateMerchantUser(merchantId, input);
+            _newUserEmail = "";
+            _merchantUsers = await MerchantSvc.GetMerchantUsers(merchantId);
+        }
+        catch (ValidationException ex) { _userFormError = ex.Message; }
+        catch (Exception) { _userFormError = "Failed to create user."; }
+    }
+}

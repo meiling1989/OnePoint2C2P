@@ -1,0 +1,104 @@
+@page "/dashboard"
+@rendermode InteractiveServer
+@layout DashboardLayout
+@inject DashboardAuthState AuthState
+@inject DashboardService DashboardSvc
+@inject NavigationManager Nav
+
+<PageTitle>OnePoint Dashboard — Overview</PageTitle>
+
+<CascadingValue Value="AuthState">
+    <LayoutView Layout="typeof(DashboardLayout)">
+    </LayoutView>
+</CascadingValue>
+
+@if (!AuthState.IsAuthenticated)
+{
+    <p>Redirecting to login…</p>
+}
+else
+{
+    <h1>Dashboard Overview</h1>
+    <p class="welcome-text">Welcome back, @AuthState.Email</p>
+
+    <div class="period-selector" role="group" aria-label="Period selector">
+        <button class="@PeriodClass("daily")" @onclick='() => SelectPeriod("daily")'>Daily</button>
+        <button class="@PeriodClass("weekly")" @onclick='() => SelectPeriod("weekly")'>Weekly</button>
+        <button class="@PeriodClass("monthly")" @onclick='() => SelectPeriod("monthly")'>Monthly</button>
+    </div>
+
+    @if (_loading)
+    {
+        <p>Loading stats…</p>
+    }
+    else if (_overview is not null)
+    {
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">Transactions</span>
+                <span class="stat-value">@_overview.TransactionCount</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Points Redeemed</span>
+                <span class="stat-value">@_overview.TotalPointsRedeemed.ToString("N0")</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Monetary Value</span>
+                <span class="stat-value">฿@_overview.TotalMonetaryValue.ToString("N2")</span>
+            </div>
+        </div>
+    }
+}
+
+<style>
+    .welcome-text { color: #666; margin-bottom: 1.5rem; }
+    .period-selector { margin-bottom: 1.5rem; display: flex; gap: 0.5rem; }
+    .period-selector button { padding: 0.5rem 1rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.9rem; }
+    .period-selector button.active { background: #7c83ff; color: #fff; border-color: #7c83ff; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .stat-card { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .stat-label { display: block; font-size: 0.85rem; color: #666; margin-bottom: 0.5rem; }
+    .stat-value { display: block; font-size: 1.75rem; font-weight: 700; color: #1a1a2e; }
+</style>
+
+@code {
+    private string _period = "monthly";
+    private DashboardOverview? _overview;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Nav.NavigateTo("/dashboard/login");
+            return;
+        }
+        await LoadStats();
+    }
+
+    private string PeriodClass(string p) => p == _period ? "active" : "";
+
+    private async Task SelectPeriod(string period)
+    {
+        _period = period;
+        await LoadStats();
+    }
+
+    private async Task LoadStats()
+    {
+        _loading = true;
+        try
+        {
+            // Admin sees system-wide; merchant_user sees own merchant only
+            _overview = await DashboardSvc.GetOverview(AuthState.MerchantId, _period);
+        }
+        catch
+        {
+            _overview = new DashboardOverview(0, 0, 0);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}
