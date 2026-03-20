@@ -57,6 +57,26 @@ public class ConsumerService
     }
 
     /// <summary>
+    /// Retrieve all consumers (for admin dashboard listing).
+    /// </summary>
+    public async Task<List<Consumer>> GetAllConsumers()
+    {
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
+
+        var consumers = await _db.QueryAsync<Consumer>(
+            """
+            SELECT id AS Id, phone_number AS PhoneNumber, display_name AS DisplayName,
+                   onepoint_balance AS OnepointBalance, qr_code_data AS QrCodeData,
+                   is_active AS IsActive, created_at AS CreatedAt
+            FROM consumers
+            ORDER BY created_at DESC
+            """);
+
+        return consumers.ToList();
+    }
+
+    /// <summary>
     /// Retrieve a consumer by ID. Throws NotFoundException if not found or inactive.
     /// </summary>
     public async Task<Consumer> GetConsumer(Guid consumerId)

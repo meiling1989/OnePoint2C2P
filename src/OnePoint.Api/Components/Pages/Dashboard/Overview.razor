@@ -67,40 +67,41 @@ else
             </div>
         </div>
 
+        <div class="dashboard-panel full-width">
+            <h2>Recent Transactions</h2>
+            <table class="dashboard-table" role="grid" aria-label="Recent transactions">
+                <thead>
+                    <tr>
+                        <th>Ref</th>
+                        <th>Consumer</th>
+                        <th>Merchant</th>
+                        <th>Points</th>
+                        <th>Value</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tx in _recentTransactions)
+                    {
+                        <tr>
+                            <td><code>@tx.Ref</code></td>
+                            <td>@tx.Consumer</td>
+                            <td>@tx.Merchant</td>
+                            <td>@tx.Points.ToString("N0")</td>
+                            <td>฿@tx.Value.ToString("N2")</td>
+                            <td>@tx.Date.ToString("dd MMM HH:mm")</td>
+                            <td><span class="badge @tx.StatusClass">@tx.Status</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
         <!-- Two-column layout: Recent Transactions + Top Merchants -->
         <div class="dashboard-columns">
-            <div class="dashboard-panel">
-                <h2>Recent Transactions</h2>
-                <table class="dashboard-table" role="grid" aria-label="Recent transactions">
-                    <thead>
-                        <tr>
-                            <th>Ref</th>
-                            <th>Consumer</th>
-                            <th>Merchant</th>
-                            <th>Points</th>
-                            <th>Value</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var tx in _recentTransactions)
-                        {
-                            <tr>
-                                <td><code>@tx.Ref</code></td>
-                                <td>@tx.Consumer</td>
-                                <td>@tx.Merchant</td>
-                                <td>@tx.Points.ToString("N0")</td>
-                                <td>฿@tx.Value.ToString("N2")</td>
-                                <td>@tx.Date.ToString("dd MMM HH:mm")</td>
-                                <td><span class="badge @tx.StatusClass">@tx.Status</span></td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+           
 
-            <div class="dashboard-panel">
+@*             <div class="dashboard-panel">
                 <h2>Top Merchants</h2>
                 <table class="dashboard-table" role="grid" aria-label="Top merchants by redemption volume">
                     <thead>
@@ -124,7 +125,7 @@ else
                         }
                     </tbody>
                 </table>
-            </div>
+            </div> *@
         </div>
 
         <!-- Active Promotions -->
