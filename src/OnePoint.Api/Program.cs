@@ -52,6 +52,17 @@ builder.Services.AddScoped<DashboardAuthState>();
 // ---------------------------------------------------------------------------
 // Blazor Server
 // ---------------------------------------------------------------------------
+var supabase = new Client(builder.Configuration["Supabase:Url"], builder.Configuration["Supabase:Key"]);
+
+// Initialize synchronously at startup so injected singleton is ready in components.
+supabase.InitializeAsync().GetAwaiter().GetResult();
+
+builder.Services.AddSingleton(supabase);
+
+// existing Blazor Server registrations...
+builder.Services.AddRazorPages();
+builder.Services.AddServerSideBlazor();
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 

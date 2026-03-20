@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+
 namespace OnePoint.Api.Models;
 
 /// <summary>
@@ -13,7 +15,6 @@ public record Consumer(
     bool IsActive,
     DateTimeOffset CreatedAt)
 {
-
     // Dapper may materialize timestamp columns as System.DateTime. Provide an
     // overload that accepts DateTime so materialization succeeds without
     // requiring a parameterless constructor.
@@ -32,7 +33,16 @@ public record PartnerLink(
     Guid ConsumerId,
     string ProgramId,
     decimal CachedBalance,
-    DateTimeOffset LinkedAt);
+    DateTimeOffset LinkedAt)
+{
+    // Dapper may materialize timestamp columns as System.DateTime. Provide an
+    // overload that accepts DateTime so materialization succeeds without
+    // requiring a parameterless constructor.
+    public PartnerLink(Guid Id, Guid ConsumerId, string ProgramId, decimal CachedBalance, DateTime linkedAt)
+        : this(Id, ConsumerId, ProgramId, CachedBalance, new DateTimeOffset(linkedAt))
+    {
+    }
+};
 
 /// <summary>
 /// External loyalty program with conversion rates to/from OnePoint.
@@ -58,7 +68,24 @@ public record RedemptionTransaction(
     decimal MonetaryValue,
     string Method,
     string Status,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt)
+{
+    // Dapper may materialize timestamp columns as System.DateTime. Provide an
+    // overload that accepts DateTime so materialization succeeds without
+    // requiring a parameterless constructor.
+    public RedemptionTransaction(Guid Id,
+    string TransactionRef,
+    Guid ConsumerId,
+    Guid MerchantId,
+    decimal PointsRedeemed,
+    decimal MonetaryValue,
+    string Method,
+    string Status,
+    DateTime CreatedAt)
+        : this(Id, TransactionRef, ConsumerId, MerchantId, PointsRedeemed, MonetaryValue, Method, Status, new DateTimeOffset(CreatedAt))
+    {
+    }
+};
 
 /// <summary>
 /// Record of points awarded to a consumer for a purchase.
@@ -71,7 +98,23 @@ public record PointAwardEvent(
     decimal PurchaseAmount,
     decimal PointsAwarded,
     Guid LoyaltyRuleId,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt)
+{
+    // Dapper may materialize timestamp columns as System.DateTime. Provide an
+    // overload that accepts DateTime so materialization succeeds without
+    // requiring a parameterless constructor.
+    public PointAwardEvent(
+    Guid Id,
+    Guid ConsumerId,
+    Guid MerchantId,
+    decimal PurchaseAmount,
+    decimal PointsAwarded,
+    Guid LoyaltyRuleId,
+    DateTime createdAt) 
+        : this(Id, ConsumerId, MerchantId, PurchaseAmount, PointsAwarded, LoyaltyRuleId , new DateTimeOffset(createdAt))
+    {
+    }
+};
 
 /// <summary>
 /// A point swap between two partner programs via OnePoint intermediary.
@@ -86,7 +129,25 @@ public record SwapTransaction(
     decimal OnepointIntermediate,
     decimal TargetAmount,
     string Status,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt)
+{
+    // Dapper may materialize timestamp columns as System.DateTime. Provide an
+    // overload that accepts DateTime so materialization succeeds without
+    // requiring a parameterless constructor.
+    public SwapTransaction(
+    Guid Id,
+    Guid ConsumerId,
+    string SourceProgramId,
+    string TargetProgramId,
+    decimal SourceAmount,
+    decimal OnepointIntermediate,
+    decimal TargetAmount,
+    string Status,
+    DateTime CreatedAt)
+        : this(Id, ConsumerId, SourceProgramId, TargetProgramId, SourceAmount, OnepointIntermediate, TargetAmount, Status, new DateTimeOffset(CreatedAt))
+    {
+    }
+};
 
 /// <summary>
 /// A merchant business that accepts OnePoint redemptions.
@@ -121,7 +182,23 @@ public record MerchantUser(
     string Email,
     string Role,
     bool IsActive,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt)
+{
+
+    // Dapper may materialize timestamp columns as System.DateTime. Provide an
+    // overload that accepts DateTime so materialization succeeds without
+    // requiring a parameterless constructor.
+    public MerchantUser(
+    Guid Id,
+    Guid MerchantId,
+    Guid AuthUserId,
+    string Email,
+    string Role,
+    bool IsActive, DateTime createdAt)
+        : this(Id, MerchantId, AuthUserId, Email, Role,IsActive, new DateTimeOffset(createdAt))
+    {
+    }
+};
 
 /// <summary>
 /// A rule defining how points are earned or redeemed at a merchant.
@@ -135,7 +212,23 @@ public record LoyaltyRule(
     decimal PointsValue,
     bool IsActive,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt)
+{
+
+    // Dapper may materialize timestamp columns as System.DateTime. Provide an
+    // overload that accepts DateTime so materialization succeeds without
+    // requiring a parameterless constructor.
+    public LoyaltyRule(
+    Guid Id,
+    Guid MerchantId,
+    string RuleType,
+    decimal PurchaseThreshold,
+    decimal PointsValue,
+    bool IsActive,DateTime createdAt, DateTime updatedAt)
+        : this(Id, MerchantId, RuleType, PurchaseThreshold, PointsValue, IsActive, new DateTimeOffset(createdAt), new DateTimeOffset(updatedAt))
+    {
+    }
+};
 
 /// <summary>
 /// A time-bound promotional offer from a merchant.
@@ -151,7 +244,27 @@ public record Promotion(
     DateTimeOffset ValidFrom,
     DateTimeOffset ValidUntil,
     bool IsActive,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt)
+{
+
+    // Dapper may materialize timestamp columns as System.DateTime. Provide an
+    // overload that accepts DateTime so materialization succeeds without
+    // requiring a parameterless constructor.
+    public Promotion(
+    Guid Id,
+    Guid MerchantId,
+    string Description,
+    string? Category,
+    decimal RequiredPoints,
+    string? TermsConditions,
+    DateTime ValidFrom,
+    DateTime ValidUntil,
+    bool IsActive,
+    DateTime CreatedAt)
+        : this(Id,MerchantId, Description, Category, RequiredPoints, TermsConditions, new DateTimeOffset(ValidFrom), new DateTimeOffset(ValidUntil), IsActive, new DateTimeOffset(CreatedAt))
+    {
+    }
+};
 
 /// <summary>
 /// An in-app notification for a consumer.
@@ -164,4 +277,21 @@ public record Notification(
     string Title,
     string Body,
     bool IsRead,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt)
+{
+
+    // Dapper may materialize timestamp columns as System.DateTime. Provide an
+    // overload that accepts DateTime so materialization succeeds without
+    // requiring a parameterless constructor.
+    public Notification(
+    Guid Id,
+    Guid ConsumerId,
+    string Category,
+    string Title,
+    string Body,
+    bool IsRead,
+    DateTime CreatedAt)
+        : this(Id, ConsumerId, Category, Title, Body, IsRead, new DateTimeOffset(CreatedAt))
+    {
+    }
+};
