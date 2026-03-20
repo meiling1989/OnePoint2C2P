@@ -15,13 +15,23 @@ var supabaseKey = builder.Configuration["Supabase:Key"]
 var supabaseConnectionString = builder.Configuration.GetConnectionString("Supabase")
     ?? throw new InvalidOperationException("ConnectionStrings:Supabase is not configured.");
 
+var url = builder.Configuration["Supabase:Url"]
+    ?? throw new InvalidOperationException("Supabase:Url is not configured.");
+var key = builder.Configuration["Supabase:Key"]
+    ?? throw new InvalidOperationException("Supabase:Key is not configured.");
+var opt = new Supabase.SupabaseOptions
+{
+    AutoRefreshToken = true,
+    AutoConnectRealtime = true,
+};
+
 // ---------------------------------------------------------------------------
 // Supabase Client (DI)
 // ---------------------------------------------------------------------------
 builder.Services.AddSingleton(provider =>
 {
     var options = new SupabaseOptions { AutoRefreshToken = false };
-    var client = new Supabase.Client(supabaseUrl, supabaseKey, options);
+    var client = new Supabase.Client(url, key, opt);
     client.InitializeAsync().GetAwaiter().GetResult();
     return client;
 });

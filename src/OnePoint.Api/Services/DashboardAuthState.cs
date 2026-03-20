@@ -6,8 +6,8 @@ namespace OnePoint.Api.Services;
 /// </summary>
 public class DashboardAuthState
 {
-    public bool IsAuthenticated { get; set; }
-    public Guid UserId { get; set; }
+    public bool IsAuthenticated { get; set; } = true;
+    public Guid UserId { get; set; } 
     public Guid? MerchantId { get; set; }
     public string Role { get; set; } = "";
     public string Email { get; set; } = "";
