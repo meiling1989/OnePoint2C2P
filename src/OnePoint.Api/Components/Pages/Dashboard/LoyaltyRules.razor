@@ -42,7 +42,7 @@ else
             <div class="form-row">
                 <div class="form-group">
                     <label for="ruleType">Type</label>
-                    <select id="ruleType" @bind="_ruleType">
+                    <select id="ruleType" @bind="_ruleType" @bind:after="StateHasChanged">
                         <option value="earn">Earn</option>
                         <option value="redeem">Redeem</option>
                     </select>
@@ -54,6 +54,15 @@ else
                 <div class="form-group">
                     <label for="pointsVal">Points Value</label>
                     <input id="pointsVal" type="number" step="0.01" min="0.01" @bind="_pointsValue" />
+                </div>
+                <div id="divPaymentMethod" style="@(_ruleType == "redeem" ? "" : "display:none;")" class="form-group">
+                    <label for="paymentMethod">Payment Method</label>
+                    <select id="paymentMethodSelect" @bind="_selectedpaymentMethod" >
+                        <option value="">Select a payment method…</option>
+                        <option value="MasterCard">MasterCard</option>
+                        <option value="Visa">Visa</option>
+                        <option value="Lazada Wallet">Lazada Wallet</option>
+                    </select>
                 </div>
                 <button class="btn-primary" @onclick="SaveRule" disabled="@_saving">
                     @(_editingRuleId.HasValue ? "Update" : "Create")
@@ -78,6 +87,7 @@ else
                         <th>Type</th>
                         <th>Threshold</th>
                         <th>Points Value</th>
+                        <th>Payment Method</th>
                         <th>Active</th>
                         <th>Updated</th>
                         <th>Actions</th>
@@ -90,6 +100,7 @@ else
                             <td>@r.RuleType</td>
                             <td>@r.PurchaseThreshold.ToString("N2")</td>
                             <td>@r.PointsValue.ToString("N2")</td>
+                            <td>@r.PaymentMethod?.ToString() </td>
                             <td>@(r.IsActive ? "✓" : "✗")</td>
                             <td>@r.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</td>
                             <td>
@@ -131,6 +142,7 @@ else
     private bool _saving;
 
     private string _selectedMerchantId = "";
+    private string _selectedpaymentMethod = "";
     private Guid _activeMerchantId;
 
     // Form fields
@@ -169,6 +181,8 @@ else
         }
     }
 
+    private void OnRuleTypeChanged() { }
+
     private async Task LoadRules()
     {
         _loading = true;
@@ -183,6 +197,7 @@ else
         _ruleType = r.RuleType;
         _threshold = r.PurchaseThreshold;
         _pointsValue = r.PointsValue;
+        _selectedpaymentMethod = r.PaymentMethod;
         _formError = "";
     }
 
@@ -192,6 +207,7 @@ else
         _ruleType = "earn";
         _threshold = 0;
         _pointsValue = 0;
+        _selectedMerchantId = "";
         _formError = "";
     }
 
@@ -204,7 +220,7 @@ else
         _saving = true;
         try
         {
-            var input = new LoyaltyRuleInput(_ruleType, _threshold, _pointsValue);
+            var input = new LoyaltyRuleInput(_ruleType, _threshold, _pointsValue, _selectedpaymentMethod);
             if (_editingRuleId.HasValue)
                 await RuleSvc.UpdateRule(_editingRuleId.Value, input);
             else

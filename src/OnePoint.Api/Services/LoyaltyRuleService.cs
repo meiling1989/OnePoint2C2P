@@ -42,10 +42,10 @@ public class LoyaltyRuleService
 
         var rule = await _db.QuerySingleAsync<LoyaltyRule>(
             """
-            INSERT INTO loyalty_rules (merchant_id, rule_type, purchase_threshold, points_value, is_active)
-            VALUES (@MerchantId, @RuleType, @PurchaseThreshold, @PointsValue, true)
+            INSERT INTO loyalty_rules (merchant_id, rule_type, purchase_threshold, points_value, payment_method, is_active)
+            VALUES (@MerchantId, @RuleType, @PurchaseThreshold, @PointsValue, @PaymentMethod, true)
             RETURNING id AS Id, merchant_id AS MerchantId, rule_type AS RuleType,
-                      purchase_threshold AS PurchaseThreshold, points_value AS PointsValue,
+                      purchase_threshold AS PurchaseThreshold, points_value AS PointsValue, payment_method AS PaymentMethod,
                       is_active AS IsActive, created_at AS CreatedAt, updated_at AS UpdatedAt
             """,
             new
@@ -53,7 +53,8 @@ public class LoyaltyRuleService
                 MerchantId = merchantId,
                 input.RuleType,
                 input.PurchaseThreshold,
-                input.PointsValue
+                input.PointsValue,
+                input.PaymentMethod
             });
 
         return rule;
@@ -74,30 +75,42 @@ public class LoyaltyRuleService
         if(_db.State != System.Data.ConnectionState.Open)
             await _db.OpenAsync();
 
-        var rule = await _db.QuerySingleOrDefaultAsync<LoyaltyRule>(
-            """
+        try
+        {
+
+            var rule = await _db.QuerySingleOrDefaultAsync<LoyaltyRule>(
+                """
             UPDATE loyalty_rules
             SET rule_type = @RuleType,
                 purchase_threshold = @PurchaseThreshold,
                 points_value = @PointsValue,
+                payment_method = @PaymentMethod,
                 updated_at = now()
             WHERE id = @Id
             RETURNING id AS Id, merchant_id AS MerchantId, rule_type AS RuleType,
                       purchase_threshold AS PurchaseThreshold, points_value AS PointsValue,
+                      payment_method AS PaymentMethod,
                       is_active AS IsActive, created_at AS CreatedAt, updated_at AS UpdatedAt
             """,
-            new
-            {
-                Id = ruleId,
-                input.RuleType,
-                input.PurchaseThreshold,
-                input.PointsValue
-            });
+                new
+                {
+                    Id = ruleId,
+                    input.RuleType,
+                    input.PurchaseThreshold,
+                    input.PointsValue,
+                    input.PaymentMethod
+                });
 
-        if (rule is null)
-            throw new NotFoundException("Loyalty rule not found.");
+            if (rule is null)
+                throw new NotFoundException("Loyalty rule not found.");
 
-        return rule;
+            return rule;
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+
     }
 
     /// <summary>
@@ -111,7 +124,7 @@ public class LoyaltyRuleService
         var rule = await _db.QuerySingleOrDefaultAsync<LoyaltyRule>(
             """
             SELECT id AS Id, merchant_id AS MerchantId, rule_type AS RuleType,
-                   purchase_threshold AS PurchaseThreshold, points_value AS PointsValue,
+                   purchase_threshold AS PurchaseThreshold, points_value AS PointsValue, payment_method AS PaymentMethod,
                    is_active AS IsActive, created_at AS CreatedAt, updated_at AS UpdatedAt
             FROM loyalty_rules
             WHERE merchant_id = @MerchantId AND is_active = true
@@ -149,7 +162,7 @@ public class LoyaltyRuleService
         var rules = await _db.QueryAsync<LoyaltyRule>(
             """
             SELECT id AS Id, merchant_id AS MerchantId, rule_type AS RuleType,
-                   purchase_threshold AS PurchaseThreshold, points_value AS PointsValue,
+                   purchase_threshold AS PurchaseThreshold, points_value AS PointsValue, payment_method AS PaymentMethod,
                    is_active AS IsActive, created_at AS CreatedAt, updated_at AS UpdatedAt
             FROM loyalty_rules
             WHERE merchant_id = @MerchantId

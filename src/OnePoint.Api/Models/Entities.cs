@@ -210,6 +210,7 @@ public record LoyaltyRule(
     string RuleType,
     decimal PurchaseThreshold,
     decimal PointsValue,
+    string? PaymentMethod,
     bool IsActive,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt)
@@ -224,8 +225,11 @@ public record LoyaltyRule(
     string RuleType,
     decimal PurchaseThreshold,
     decimal PointsValue,
-    bool IsActive,DateTime createdAt, DateTime updatedAt)
-        : this(Id, MerchantId, RuleType, PurchaseThreshold, PointsValue, IsActive, new DateTimeOffset(createdAt), new DateTimeOffset(updatedAt))
+    string? PaymentMethod,
+    bool IsActive,
+    DateTime createdAt, 
+    DateTime updatedAt)
+        : this(Id, MerchantId, RuleType, PurchaseThreshold, PointsValue, PaymentMethod, IsActive, new DateTimeOffset(createdAt), new DateTimeOffset(updatedAt))
     {
     }
 };

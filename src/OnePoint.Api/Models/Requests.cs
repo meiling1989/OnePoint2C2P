@@ -66,7 +66,8 @@ public record MerchantUserInput(
 public record LoyaltyRuleInput(
     string RuleType,
     decimal PurchaseThreshold,
-    decimal PointsValue);
+    decimal PointsValue,
+    string PaymentMethod);
 
 /// <summary>
 /// Input for creating or updating a promotion.
@@ -104,7 +105,8 @@ public record LoyaltyRuleCreateRequest(
     Guid MerchantId,
     string RuleType,
     decimal PurchaseThreshold,
-    decimal PointsValue);
+    decimal PointsValue,
+    string PaymentMethod);
 
 /// <summary>
 /// Request to create a promotion (includes merchantId in body).

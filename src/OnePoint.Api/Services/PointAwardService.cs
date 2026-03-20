@@ -50,7 +50,7 @@ public class PointAwardService
             var rule = await _db.QuerySingleOrDefaultAsync<LoyaltyRule>(
                 """
                 SELECT id AS Id, merchant_id AS MerchantId, rule_type AS RuleType,
-                       purchase_threshold AS PurchaseThreshold, points_value AS PointsValue,
+                       purchase_threshold AS PurchaseThreshold, points_value AS PointsValue, payment_method AS PaymentMethod,
                        is_active AS IsActive, created_at AS CreatedAt, updated_at AS UpdatedAt
                 FROM loyalty_rules
                 WHERE merchant_id = @MerchantId AND is_active = true

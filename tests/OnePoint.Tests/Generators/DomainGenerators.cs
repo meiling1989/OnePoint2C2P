@@ -59,10 +59,11 @@ public class DomainGenerators
             from ruleType in Gen.Elements("earn", "redeem")
             from threshold in GenPositiveDecimal()
             from points in GenPositiveDecimal()
+            from paymentMethod in Gen.Elements("mastercard", "visa", "")
             from active in Gen.Elements(true, false)
             from createdAt in GenRecentDate()
             from updatedAt in GenRecentDate()
-            select new LoyaltyRule(id, merchantId, ruleType, threshold, points, active, createdAt, updatedAt);
+            select new LoyaltyRule(id, merchantId, ruleType, threshold, points, paymentMethod, active, createdAt, updatedAt);
 
         return Arb.From(gen);
     }

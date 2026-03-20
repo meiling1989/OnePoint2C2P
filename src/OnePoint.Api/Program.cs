@@ -354,7 +354,7 @@ adminApi.MapGet("/merchants/{id:guid}/users", async (Guid id, MerchantService sv
 // POST /api/loyalty-rules — Req 20
 merchantApi.MapPost("/loyalty-rules", async (LoyaltyRuleCreateRequest req, LoyaltyRuleService svc) =>
 {
-    var rule = await svc.CreateRule(req.MerchantId, new LoyaltyRuleInput(req.RuleType, req.PurchaseThreshold, req.PointsValue));
+    var rule = await svc.CreateRule(req.MerchantId, new LoyaltyRuleInput(req.RuleType, req.PurchaseThreshold, req.PointsValue, req.PaymentMethod));
     return Results.Created($"/api/loyalty-rules/{rule.Id}", rule);
 });
 
