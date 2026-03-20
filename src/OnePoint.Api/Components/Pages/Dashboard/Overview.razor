@@ -2,15 +2,9 @@
 @rendermode InteractiveServer
 @layout DashboardLayout
 @inject DashboardAuthState AuthState
-@inject DashboardService DashboardSvc
 @inject NavigationManager Nav
 
 <PageTitle>OnePoint Dashboard — Overview</PageTitle>
-
-<CascadingValue Value="AuthState">
-    <LayoutView Layout="typeof(DashboardLayout)">
-    </LayoutView>
-</CascadingValue>
 
 @if (!AuthState.IsAuthenticated)
 {
@@ -31,20 +25,122 @@ else
     {
         <p>Loading stats…</p>
     }
-    else if (_overview is not null)
+    else
     {
+        <!-- KPI Cards -->
         <div class="stats-grid">
             <div class="stat-card">
+                <span class="stat-icon">📊</span>
                 <span class="stat-label">Transactions</span>
                 <span class="stat-value">@_overview.TransactionCount</span>
+                <span class="stat-trend trend-up">▲ 12% vs last period</span>
             </div>
             <div class="stat-card">
+                <span class="stat-icon">🎯</span>
                 <span class="stat-label">Points Redeemed</span>
                 <span class="stat-value">@_overview.TotalPointsRedeemed.ToString("N0")</span>
+                <span class="stat-trend trend-up">▲ 8% vs last period</span>
             </div>
             <div class="stat-card">
+                <span class="stat-icon">💰</span>
                 <span class="stat-label">Monetary Value</span>
                 <span class="stat-value">฿@_overview.TotalMonetaryValue.ToString("N2")</span>
+                <span class="stat-trend trend-up">▲ 15% vs last period</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">👥</span>
+                <span class="stat-label">Active Consumers</span>
+                <span class="stat-value">@_activeConsumers.ToString("N0")</span>
+                <span class="stat-trend trend-up">▲ 5% vs last period</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">🏪</span>
+                <span class="stat-label">Active Merchants</span>
+                <span class="stat-value">@_activeMerchants</span>
+                <span class="stat-trend trend-neutral">— No change</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">🔄</span>
+                <span class="stat-label">Point Swaps</span>
+                <span class="stat-value">@_totalSwaps</span>
+                <span class="stat-trend trend-down">▼ 3% vs last period</span>
+            </div>
+        </div>
+
+        <!-- Two-column layout: Recent Transactions + Top Merchants -->
+        <div class="dashboard-columns">
+            <div class="dashboard-panel">
+                <h2>Recent Transactions</h2>
+                <table class="dashboard-table" role="grid" aria-label="Recent transactions">
+                    <thead>
+                        <tr>
+                            <th>Ref</th>
+                            <th>Consumer</th>
+                            <th>Merchant</th>
+                            <th>Points</th>
+                            <th>Value</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tx in _recentTransactions)
+                        {
+                            <tr>
+                                <td><code>@tx.Ref</code></td>
+                                <td>@tx.Consumer</td>
+                                <td>@tx.Merchant</td>
+                                <td>@tx.Points.ToString("N0")</td>
+                                <td>฿@tx.Value.ToString("N2")</td>
+                                <td>@tx.Date.ToString("dd MMM HH:mm")</td>
+                                <td><span class="badge @tx.StatusClass">@tx.Status</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="dashboard-panel">
+                <h2>Top Merchants</h2>
+                <table class="dashboard-table" role="grid" aria-label="Top merchants by redemption volume">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Merchant</th>
+                            <th>Transactions</th>
+                            <th>Points Redeemed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ var rank = 1; }
+                        @foreach (var m in _topMerchants)
+                        {
+                            <tr>
+                                <td>@(rank++)</td>
+                                <td>@m.Name</td>
+                                <td>@m.Transactions</td>
+                                <td>@m.PointsRedeemed.ToString("N0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Active Promotions -->
+        <div class="dashboard-panel full-width">
+            <h2>Active Promotions</h2>
+            <div class="promo-grid">
+                @foreach (var promo in _activePromotions)
+                {
+                    <div class="promo-card">
+                        <span class="promo-category">@promo.Category</span>
+                        <h3>@promo.Description</h3>
+                        <p class="promo-points">@promo.RequiredPoints.ToString("N0") points</p>
+                        <p class="promo-validity">Valid until @promo.ValidUntil.ToString("dd MMM yyyy")</p>
+                        <span class="promo-merchant">@promo.Merchant</span>
+                    </div>
+                }
             </div>
         </div>
     }
@@ -53,18 +149,60 @@ else
 <style>
     .welcome-text { color: #666; margin-bottom: 1.5rem; }
     .period-selector { margin-bottom: 1.5rem; display: flex; gap: 0.5rem; }
-    .period-selector button { padding: 0.5rem 1rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.9rem; }
+    .period-selector button { padding: 0.5rem 1rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+    .period-selector button:hover { border-color: #7c83ff; }
     .period-selector button.active { background: #7c83ff; color: #fff; border-color: #7c83ff; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-    .stat-card { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-    .stat-label { display: block; font-size: 0.85rem; color: #666; margin-bottom: 0.5rem; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); position: relative; }
+    .stat-icon { font-size: 1.5rem; display: block; margin-bottom: 0.5rem; }
+    .stat-label { display: block; font-size: 0.85rem; color: #666; margin-bottom: 0.25rem; }
     .stat-value { display: block; font-size: 1.75rem; font-weight: 700; color: #1a1a2e; }
+    .stat-trend { display: block; font-size: 0.75rem; margin-top: 0.5rem; }
+    .trend-up { color: #22c55e; }
+    .trend-down { color: #ef4444; }
+    .trend-neutral { color: #999; }
+
+    .dashboard-columns { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+    .dashboard-panel { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .dashboard-panel h2 { font-size: 1.1rem; margin: 0 0 1rem 0; color: #1a1a2e; }
+    .dashboard-panel.full-width { margin-bottom: 2rem; }
+
+    .dashboard-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .dashboard-table th { text-align: left; padding: 0.5rem; border-bottom: 2px solid #eee; color: #666; font-weight: 600; }
+    .dashboard-table td { padding: 0.5rem; border-bottom: 1px solid #f0f0f0; }
+    .dashboard-table code { background: #f5f5f5; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.8rem; }
+
+    .badge { padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    .badge-completed { background: #dcfce7; color: #166534; }
+    .badge-pending { background: #fef9c3; color: #854d0e; }
+    .badge-reversed { background: #fee2e2; color: #991b1b; }
+
+    .promo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+    .promo-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.25rem; transition: box-shadow 0.2s; }
+    .promo-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .promo-category { display: inline-block; background: #ede9fe; color: #6d28d9; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .promo-card h3 { margin: 0.5rem 0; font-size: 1rem; color: #1a1a2e; }
+    .promo-points { color: #7c83ff; font-weight: 700; margin: 0.25rem 0; }
+    .promo-validity { font-size: 0.8rem; color: #999; margin: 0.25rem 0; }
+    .promo-merchant { font-size: 0.8rem; color: #666; font-style: italic; }
+
+    @@media (max-width: 768px) {
+        .dashboard-columns { grid-template-columns: 1fr; }
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
 </style>
 
 @code {
     private string _period = "monthly";
-    private DashboardOverview? _overview;
+    private DashboardOverview _overview = new(0, 0, 0);
     private bool _loading = true;
+    private int _activeConsumers;
+    private int _activeMerchants;
+    private int _totalSwaps;
+    private List<MockTransaction> _recentTransactions = new();
+    private List<MockTopMerchant> _topMerchants = new();
+    private List<MockPromotion> _activePromotions = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -84,21 +222,75 @@ else
         await LoadStats();
     }
 
-    private async Task LoadStats()
+    private Task LoadStats()
     {
         _loading = true;
-        try
+
+        // Mockup data — varies by selected period
+        var (txCount, points, value, consumers, swaps) = _period switch
         {
-            // Admin sees system-wide; merchant_user sees own merchant only
-            _overview = await DashboardSvc.GetOverview(AuthState.MerchantId, _period);
-        }
-        catch
-        {
-            _overview = new DashboardOverview(0, 0, 0);
-        }
-        finally
-        {
-            _loading = false;
-        }
+            "daily"   => (47,    12_350m,   6_175.00m,  1_284, 18),
+            "weekly"  => (312,   84_720m,  42_360.00m,  1_284, 127),
+            "monthly" => (1_248, 342_500m, 171_250.00m, 1_284, 489),
+            _         => (1_248, 342_500m, 171_250.00m, 1_284, 489)
+        };
+
+        _overview = new DashboardOverview(txCount, points, value);
+        _activeConsumers = consumers;
+        _activeMerchants = 24;
+        _totalSwaps = swaps;
+
+        _recentTransactions = GenerateMockTransactions();
+        _topMerchants = GenerateMockTopMerchants();
+        _activePromotions = GenerateMockPromotions();
+
+        _loading = false;
+        return Task.CompletedTask;
     }
+
+    private List<MockTransaction> GenerateMockTransactions()
+    {
+        var now = DateTime.Now;
+        return new List<MockTransaction>
+        {
+            new("TXN-20260320-001", "Somchai T.",   "CentralWorld",     500,   250.00m, now.AddMinutes(-12), "Completed", "badge-completed"),
+            new("TXN-20260320-002", "Nattaya K.",   "Siam Paragon",     1200,  600.00m, now.AddMinutes(-34), "Completed", "badge-completed"),
+            new("TXN-20260320-003", "Prasit W.",    "The Mall Bangkapi", 300,  150.00m, now.AddHours(-1),    "Pending",   "badge-pending"),
+            new("TXN-20260320-004", "Kannika S.",   "MBK Center",        800,  400.00m, now.AddHours(-2),    "Completed", "badge-completed"),
+            new("TXN-20260320-005", "Wichai P.",    "Terminal 21",       150,   75.00m, now.AddHours(-3),    "Reversed",  "badge-reversed"),
+            new("TXN-20260319-006", "Supaporn L.",  "EmQuartier",       2000, 1000.00m, now.AddHours(-5),    "Completed", "badge-completed"),
+            new("TXN-20260319-007", "Anong R.",     "ICON Siam",         650,  325.00m, now.AddHours(-7),    "Completed", "badge-completed"),
+            new("TXN-20260319-008", "Thawatchai M.","Mega Bangna",       420,  210.00m, now.AddHours(-9),    "Pending",   "badge-pending"),
+        };
+    }
+
+    private List<MockTopMerchant> GenerateMockTopMerchants()
+    {
+        return new List<MockTopMerchant>
+        {
+            new("CentralWorld",      312, 156_000),
+            new("Siam Paragon",      287, 143_500),
+            new("ICON Siam",         198,  99_000),
+            new("Terminal 21",       176,  88_000),
+            new("EmQuartier",        145,  72_500),
+            new("The Mall Bangkapi", 130,  65_000),
+        };
+    }
+
+    private List<MockPromotion> GenerateMockPromotions()
+    {
+        return new List<MockPromotion>
+        {
+            new("Double Points Weekend",  "Earn 2x points on all purchases this weekend",       "Bonus",    0,     DateTime.Now.AddDays(2),  "CentralWorld"),
+            new("Coffee Lovers",          "Redeem 200 points for a free coffee at any café",    "F&B",      200,   DateTime.Now.AddDays(30), "Siam Paragon"),
+            new("Movie Night",            "500 points for 2 movie tickets at Major Cineplex",   "Entertainment", 500, DateTime.Now.AddDays(14), "Terminal 21"),
+            new("Spa Retreat",            "1,500 points for a 60-min spa treatment",            "Wellness", 1500,  DateTime.Now.AddDays(45), "EmQuartier"),
+        };
+    }
+
+    // ---- Mock DTOs ----
+    private record MockTransaction(string Ref, string Consumer, string Merchant, decimal Points, decimal Value, DateTime Date, string Status, string StatusClass);
+    private record MockTopMerchant(string Name, int Transactions, decimal PointsRedeemed);
+    private record MockPromotion(string Description, string Details, string Category, int RequiredPoints, DateTime ValidUntil, string Merchant);
+    private record DashboardOverview(int TransactionCount, decimal TotalPointsRedeemed, decimal TotalMonetaryValue);
 }
