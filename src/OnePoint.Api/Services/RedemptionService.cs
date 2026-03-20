@@ -31,7 +31,8 @@ public class RedemptionService
         if (method is not ("qr_code" or "user_id"))
             throw new ValidationException("Method must be 'qr_code' or 'user_id'.");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
         await using var tx = await _db.BeginTransactionAsync();
 
         try
@@ -121,7 +122,8 @@ public class RedemptionService
     /// </summary>
     public async Task ReverseRedemption(string transactionRef)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
         await using var tx = await _db.BeginTransactionAsync();
 
         try
@@ -220,7 +222,8 @@ public class RedemptionService
         };
         var orderDir = sortDir?.ToLowerInvariant() == "asc" ? "ASC" : "DESC";
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var countSql = $"SELECT COUNT(*) FROM redemption_transactions rt {where}";
         var totalCount = await _db.ExecuteScalarAsync<int>(countSql, parameters);

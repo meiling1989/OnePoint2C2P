@@ -44,7 +44,8 @@ public class DashboardService
             parameters.Add("FromDate", fromDate.Value);
         }
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var sql = $"""
             SELECT
@@ -64,7 +65,8 @@ public class DashboardService
     /// </summary>
     public async Task<MerchantUser?> GetMerchantUserByAuthId(Guid authUserId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         return await _db.QuerySingleOrDefaultAsync<MerchantUser>(
             """

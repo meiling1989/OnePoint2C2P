@@ -33,7 +33,8 @@ public class NotificationService
         if (string.IsNullOrWhiteSpace(body))
             throw new ValidationException("Body is required.");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         // Verify consumer exists and is active
         var consumerExists = await _db.ExecuteScalarAsync<bool>(
@@ -67,7 +68,8 @@ public class NotificationService
     /// </summary>
     public async Task<List<Notification>> GetUnread(Guid consumerId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var notifications = await _db.QueryAsync<Notification>(
             """
@@ -87,7 +89,8 @@ public class NotificationService
     /// </summary>
     public async Task MarkAsRead(Guid notificationId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var rowsAffected = await _db.ExecuteAsync(
             "UPDATE notifications SET is_read = true WHERE id = @Id",

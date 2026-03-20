@@ -27,7 +27,8 @@ public class ConsumerService
         if (string.IsNullOrWhiteSpace(phoneNumber))
             throw new ValidationException("Phone number is required.");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         // Check if phone number already exists
         var exists = await _db.ExecuteScalarAsync<bool>(
@@ -60,7 +61,8 @@ public class ConsumerService
     /// </summary>
     public async Task<Consumer> GetConsumer(Guid consumerId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var consumer = await _db.QuerySingleOrDefaultAsync<Consumer>(
             """
@@ -85,7 +87,8 @@ public class ConsumerService
         if (string.IsNullOrWhiteSpace(request.DisplayName))
             throw new ValidationException("Display name cannot be empty.");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var rowsAffected = await _db.ExecuteAsync(
             """
@@ -105,7 +108,8 @@ public class ConsumerService
     /// </summary>
     public async Task DeactivateAccount(Guid consumerId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var rowsAffected = await _db.ExecuteAsync(
             "UPDATE consumers SET is_active = false WHERE id = @Id AND is_active = true",

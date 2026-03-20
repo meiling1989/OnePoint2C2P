@@ -32,7 +32,8 @@ public class PromotionService
         if (input.RequiredPoints <= 0)
             throw new ValidationException("invalid-promotion");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         // Verify merchant exists and is active
         var merchantExists = await _db.ExecuteScalarAsync<bool>(
@@ -90,7 +91,8 @@ public class PromotionService
             parameters.Add("Category", filter.Category);
         }
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var sql = $"""
             SELECT id AS Id, merchant_id AS MerchantId, description AS Description,
@@ -111,7 +113,8 @@ public class PromotionService
     /// </summary>
     public async Task<Promotion> GetPromotion(Guid promotionId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var promotion = await _db.QuerySingleOrDefaultAsync<Promotion>(
             """

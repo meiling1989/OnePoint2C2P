@@ -30,7 +30,8 @@ public class LoyaltyRuleService
         if (input.PointsValue <= 0)
             throw new ValidationException("Points value must be a positive number.");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var merchantActive = await _db.ExecuteScalarAsync<bool>(
             "SELECT EXISTS(SELECT 1 FROM merchants WHERE id = @Id AND is_active = true)",
@@ -70,7 +71,8 @@ public class LoyaltyRuleService
         if (input.PointsValue <= 0)
             throw new ValidationException("Points value must be a positive number.");
 
-        await _db.OpenAsync();
+        if(_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var rule = await _db.QuerySingleOrDefaultAsync<LoyaltyRule>(
             """
@@ -103,7 +105,8 @@ public class LoyaltyRuleService
     /// </summary>
     public async Task<LoyaltyRule?> GetActiveRule(Guid merchantId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var rule = await _db.QuerySingleOrDefaultAsync<LoyaltyRule>(
             """
@@ -124,7 +127,8 @@ public class LoyaltyRuleService
     /// </summary>
     public async Task DeactivateRule(Guid ruleId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var rows = await _db.ExecuteAsync(
             "UPDATE loyalty_rules SET is_active = false, updated_at = now() WHERE id = @Id",
@@ -139,7 +143,8 @@ public class LoyaltyRuleService
     /// </summary>
     public async Task<List<LoyaltyRule>> GetRules(Guid merchantId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var rules = await _db.QueryAsync<LoyaltyRule>(
             """

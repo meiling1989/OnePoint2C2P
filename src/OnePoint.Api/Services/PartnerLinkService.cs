@@ -25,7 +25,8 @@ public class PartnerLinkService
     /// </summary>
     public async Task<PartnerLink> LinkPartner(Guid consumerId, string programId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         // 1. Verify consumer exists and is active
         var consumerExists = await _db.ExecuteScalarAsync<bool>(
@@ -70,7 +71,8 @@ public class PartnerLinkService
     /// </summary>
     public async Task UnlinkPartner(Guid consumerId, string programId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var rowsAffected = await _db.ExecuteAsync(
             "DELETE FROM partner_links WHERE consumer_id = @ConsumerId AND program_id = @ProgramId",
@@ -86,7 +88,8 @@ public class PartnerLinkService
     /// </summary>
     public async Task<List<PartnerLink>> GetLinkedPartners(Guid consumerId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var links = await _db.QueryAsync<PartnerLink>(
             """

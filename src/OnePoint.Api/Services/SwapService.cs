@@ -31,7 +31,8 @@ public class SwapService
         if (sourceProgram == targetProgram)
             throw new ValidationException("Source and target programs must be different.");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         // Look up source partner program
         var source = await _db.QuerySingleOrDefaultAsync<PartnerProgram>(
@@ -76,7 +77,8 @@ public class SwapService
     /// </summary>
     public async Task<SwapResult> ExecuteSwap(Guid consumerId, SwapPreview preview)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
         await using var tx = await _db.BeginTransactionAsync();
 
         try

@@ -26,7 +26,8 @@ public class MerchantService
         if (string.IsNullOrWhiteSpace(input.BusinessName))
             throw new ValidationException("Business name is required.");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var merchant = await _db.QuerySingleAsync<Merchant>(
             """
@@ -50,7 +51,8 @@ public class MerchantService
         if (string.IsNullOrWhiteSpace(input.BusinessName))
             throw new ValidationException("Business name is required.");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var merchant = await _db.QuerySingleOrDefaultAsync<Merchant>(
             """
@@ -76,7 +78,8 @@ public class MerchantService
     /// </summary>
     public async Task DeactivateMerchant(Guid merchantId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
         await using var tx = await _db.BeginTransactionAsync();
 
         try
@@ -116,7 +119,8 @@ public class MerchantService
         if (string.IsNullOrWhiteSpace(input.Email))
             throw new ValidationException("Email is required.");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var merchantActive = await _db.ExecuteScalarAsync<bool>(
             "SELECT EXISTS(SELECT 1 FROM merchants WHERE id = @Id AND is_active = true)",
@@ -150,7 +154,8 @@ public class MerchantService
     /// </summary>
     public async Task<List<MerchantUser>> GetMerchantUsers(Guid merchantId)
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var exists = await _db.ExecuteScalarAsync<bool>(
             "SELECT EXISTS(SELECT 1 FROM merchants WHERE id = @Id)",
@@ -177,7 +182,8 @@ public class MerchantService
     /// </summary>
     public async Task<List<Merchant>> GetMerchants()
     {
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
 
         var merchants = await _db.QueryAsync<Merchant>(
             """

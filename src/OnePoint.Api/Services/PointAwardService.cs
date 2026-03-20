@@ -28,7 +28,8 @@ public class PointAwardService
         if (purchaseAmount <= 0)
             throw new ValidationException("Purchase amount must be positive.");
 
-        await _db.OpenAsync();
+        if (_db.State != System.Data.ConnectionState.Open)
+            await _db.OpenAsync();
         await using var tx = await _db.BeginTransactionAsync();
 
         try
